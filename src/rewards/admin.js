@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -31,93 +8,117 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const plugins = __importStar(require("../plugins"));
-const db = __importStar(require("../database")); // Import the 'db' module with proper type declarations
-const utils = __importStar(require("../utils"));
-const rewards = {
-    save: function (data) {
-        return __awaiter(this, void 0, void 0, function* () {
-            function save(data) {
-                return __awaiter(this, void 0, void 0, function* () {
-                    if (!Object.keys(data.rewards).length) {
-                        return;
-                    }
-                    const rewardsData = data.rewards;
-                    delete data.rewards;
-                    if (!parseInt(data.id, 10)) {
-                        // Ensure that 'db' has the 'incrObjectField' method and type
-                        if (typeof db.incrObjectField === 'function') {
-                            data.id = yield (db).incrObjectField('global', 'rewards:id'); // Type assertion for 'db'
-                        }
-                        else {
-                            throw new Error('db.incrObjectField is not a function');
-                        }
-                    }
-                    yield rewards.delete(data);
-                    yield db.setAdd('rewards:list', data.id);
-                    yield db.setObject(`rewards:id:${data.id}`, data);
-                    yield db.setObject(`rewards:id:${data.id}:rewards`, rewardsData);
-                });
-            }
-            yield Promise.all(data.map(data => save(data)));
-            yield saveConditions(data);
-            return data;
-        });
-    },
-    delete: function (data) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield Promise.all([
-                db.setRemove('rewards:list', data.id),
-                db.delete(`rewards:id:${data.id}`),
-                db.delete(`rewards:id:${data.id}:rewards`),
-            ]);
-        });
-    },
-    get: function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            return yield utils.promiseParallel({
-                active: getActiveRewards(),
-                conditions: plugins.hooks.fire('filter:rewards.conditions', []),
-                conditionals: plugins.hooks.fire('filter:rewards.conditionals', []),
-                rewards: plugins.hooks.fire('filter:rewards.rewards', []),
-            });
-        });
-    },
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.get = exports.save = exports._delete = void 0;
+const plugins_1 = __importDefault(require("../plugins"));
+const database_1 = __importDefault(require("../database"));
+const utils_1 = __importDefault(require("../utils"));
+function _delete(data) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        yield database_1.default.setRemove('rewards:list', data.id);
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        yield database_1.default.delete(`rewards:id:${data.id}`);
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        yield database_1.default.delete(`rewards:id:${data.id}:rewards`);
+    });
+}
+exports._delete = _delete;
+function getActiveRewards() {
+    return __awaiter(this, void 0, void 0, function* () {
+        function load(id) {
+            return __awaiter(this, void 0, void 0, function* () {
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                const main = yield database_1.default.getObject(`rewards:id:${id}`);
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                const rewards = yield database_1.default.getObject(`rewards:id:${id}:rewards`);
+                if (main) {
+                    main.disabled = main.disabled === true;
+                    main.rewards = rewards;
+                }
+                return main;
+            });
+        }
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const rewardsList = yield database_1.default.getSetMembers('rewards:list');
+        const rewardData = yield Promise.all(rewardsList.map(id => load(id)));
+        return rewardData.filter(Boolean);
+    });
+}
 function saveConditions(data) {
     return __awaiter(this, void 0, void 0, function* () {
         const rewardsPerCondition = {};
-        yield db.delete('conditions:active');
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        yield database_1.default.delete('conditions:active');
         const conditions = [];
         data.forEach((reward) => {
             conditions.push(reward.condition);
             rewardsPerCondition[reward.condition] = rewardsPerCondition[reward.condition] || [];
             rewardsPerCondition[reward.condition].push(reward.id);
         });
-        yield db.setAdd('conditions:active', conditions);
-        yield Promise.all(Object.keys(rewardsPerCondition).map(c => db.setAdd(`condition:${c}:rewards`, rewardsPerCondition[c])));
-    });
-}
-function getActiveRewards() {
-    return __awaiter(this, void 0, void 0, function* () {
-        function load(id) {
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        yield database_1.default.setAdd('conditions:active', conditions);
+        function dbAddSet(c) {
             return __awaiter(this, void 0, void 0, function* () {
-                const [main, rewards] = yield Promise.all([
-                    db.getObject(`rewards:id:${id}`),
-                    db.getObject(`rewards:id:${id}:rewards`),
-                ]);
-                if (main) {
-                    main.disabled = main.disabled === 'true';
-                    main.rewards = rewards;
-                }
-                return main;
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                yield database_1.default.setAdd(`condition:${c}:rewards`, rewardsPerCondition[c]);
             });
         }
-        const rewardsList = yield db.getSetMembers('rewards:list');
-        const rewardData = yield Promise.all(rewardsList.map(id => load(id)));
-        return rewardData.filter(Boolean);
+        yield Promise.all(Object.keys(rewardsPerCondition).map(c => dbAddSet(c)));
     });
 }
-require('../promisify')(rewards);
-exports.default = rewards;
+function save(data) {
+    return __awaiter(this, void 0, void 0, function* () {
+        function save(data) {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (!Object.keys(data.rewards).length) {
+                    return;
+                }
+                const rewardsData = data.rewards;
+                delete data.rewards;
+                if (!parseInt(data.id, 10)) {
+                    // The next line calls a function in a module that has not been updated to TS yet
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                    data.id = (yield database_1.default.incrObjectField('global', 'rewards:id'));
+                }
+                yield _delete(data);
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                yield database_1.default.setAdd('rewards:list', data.id);
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                yield database_1.default.setObject(`rewards:id:${data.id}`, data);
+                // The next line calls a function in a module that has not been updated to TS yet
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                yield database_1.default.setObject(`rewards:id:${data.id}:rewards`, rewardsData);
+            });
+        }
+        yield Promise.all(data.map(data => save(data)));
+        yield saveConditions(data);
+        return data;
+    });
+}
+exports.save = save;
+function get() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return yield utils_1.default.promiseParallel({
+            active: getActiveRewards(),
+            conditions: plugins_1.default.hooks.fire('filter:rewards.conditions', []),
+            conditionals: plugins_1.default.hooks.fire('filter:rewards.conditionals', []),
+            rewards: plugins_1.default.hooks.fire('filter:rewards.rewards', []),
+        });
+    });
+}
+exports.get = get;
